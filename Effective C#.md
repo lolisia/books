@@ -33,6 +33,8 @@ var query2 = query1.Where(s => s.StartsWith(start));  // query1이 IQuerayable<s
 또한 확장 메서드는 반드시 static으로 선언해야 하기 때문에 컴파일러는 객체의 컴파일 타임 타입에 준하여 메서드를 수행한다.
 따라서 [늦은 바인딩](https://www.geeksforgeeks.org/early-and-late-binding-in-c-sharp/) 메커니즘이 적용되지 않는다.
 
+### 2. const보다는 readonly가 좋다 ###
+
 ### 37. 쿼리를 사용할 때는 즉시 평가보다 지연 평가가 낫다 ###
 
 쿼리를 정의하는 작업은 작업 수행 절차를 정의하는 것이므로, 쿼리의 결과를 순회하는 경우에 결과가 생성된다. 이를 지연 평가(Lazy Evaluation)라고 한다.

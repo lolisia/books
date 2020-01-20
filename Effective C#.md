@@ -12,8 +12,26 @@ var foo = new { gameObject.name, gameObject.transform };
 Debug.Log(foo.name + foo.transform.name);
 ```
 
-일부 LINQ 구문의 경우 IEnumerable<T>를 반환하지 않고 IQueryable<T>을 반환하는 경우가 있는데, 
+일부 LINQ 구문의 경우 IEnumerable<T>를 반환하지 않고 IQueryable<T>을 반환하는 경우가 있는데,
 이 경우 IQueryable<T>컬렉션을 IEnumerable<T>로 형변환 하는 경우 [IQueryProvider가 제공하는 장점을 사용할 수 없게 된다.](#47-ienumerable-데이터-소스와-iqueryable-데이터-소스를-구분하라)
+
+```C#
+// 1
+IEnumerable<string> query1 = from c in db.Customers
+                            select c.ContactName;
+
+var query2 = query1.Where(s => s.StartsWith(start));  // 확장 메서드 Queryable.Where이 아닌, Enumerable.Where이 호출되어 비효율적으로 동작한다.
+
+// 2
+var query1 = from c in db.Customers
+            select c.ContactName;
+
+var query2 = query1.Where(s => s.StartsWith(start));  // query1이 IQuerayable<string>으로 평가되어 Queryable.Where을 호출한다.
+```
+
+확장 메서드는 virtual로 선언할 수 없으므로 객체의 런타임 타입에 따라 다르게 동작하도록 작성할 수 없다.
+또한 확장 메서드는 반드시 static으로 선언해야 하기 때문에 컴파일러는 객체의 컴파일 타임 타입에 준하여 메서드를 수행한다.
+따라서 [늦은 바인딩](https://www.geeksforgeeks.org/early-and-late-binding-in-c-sharp/) 메커니즘이 적용되지 않는다.
 
 ### 37. 쿼리를 사용할 때는 즉시 평가보다 지연 평가가 낫다 ###
 

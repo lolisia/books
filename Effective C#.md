@@ -52,6 +52,45 @@ const의 경우 컴파일 타임에 상수로 IL코드를 대체하고, readonly
 
 ### 10. 베이스 클래스가 업그레이드된 경우에만 new 한정자를 사용하라 ###
 
+```C#
+public class Base
+{
+  public void Function() => Console.WriteLine("Base");
+}
+
+public class Derived : Base
+{
+  // Function을 재정의
+  public new void Function() => Console.WriteLine("Derived");
+}
+```
+
+위와 같이 비 가상 메서드를 재정의 한 경우, 동일한 인스턴스라도 어떻게 참조하는가에 따라 호출 결과가 달라진다.
+new 한정자를 활용해도 좋은 경우는 베이스 클래스(A)에서 이미 사용하고 있는 메서드를 재정의하여 완전히 새로운 베이스 클래스(B)를 만들어야 하는 경우 정도다.
+
+아래와 같은 형태로 사용하던 중
+```C#
+public class A
+{
+  public void Function() { ... }
+}
+
+public class B : A
+{
+  public void MyFunction() { ... }
+}
+```
+A클래스에 MyFunction() 이라는 함수가 구현되어 namespace에서 충돌하는 경우, 1) B클래스의 MyFunction() 이름을 변경하거나, 2) B클래스에서 MyFunction을 new 한정자로 재정의 할 수 있다.
+
+```C#
+public class B : A
+{
+  public new void MyFunction() => base.MyFunction();
+}
+```
+하지만, 이 경우에도 MyFunction은 참조 방식에 따라 다른 호출을 한다는 상황은 변함 없으므로 신중히 고려해야 한다.
+그 외의 경우라면 절대로 new 한정자를 사용해서는 안된다.
+
 ### 37. 쿼리를 사용할 때는 즉시 평가보다 지연 평가가 낫다 ###
 
 쿼리를 정의하는 작업은 작업 수행 절차를 정의하는 것이므로, 쿼리의 결과를 순회하는 경우에 결과가 생성된다. 이를 지연 평가(Lazy Evaluation)라고 한다.

@@ -50,6 +50,46 @@ const의 경우 컴파일 타임에 상수로 IL코드를 대체하고, readonly
 
 이런 몇가지 예외적인 상황을 제외한다면 대부분의 경우 const보다는 readonly를 사용하는 것이 좋다.
 
+### 3. 캐스트보다는 is, as가 좋다 ###
+형변환을 수행하는 경우 캐스팅 보다는 as 연산자를 사용하는 것이 좋다. 안전함과 동시에 런타임에 더 효율적으로 동작한다. 다만, as/is 연산자를 사용하는 경우 사용자 정의 형변환은 수행되지 않는다.
+
+형변환 과정에서 새로운 개체가 생성되는 경우는 as 연산자를 이용하여 박싱된 값 타입의 객체를 nullable 값 타입 객체로 변환하는 경우만 존재한다.
+
+```C#
+public class T
+{
+  private V _value;
+
+  // T -> V로 암시적 형변환을 구현
+  public static implicit operator V(T t) => t._value;
+}
+
+public static class Factory
+{
+  // T를 반환하는 Factory Class
+  public static object GetObject() => new T();
+}
+
+var o = Factory.GetObject();
+var v1 = o as V;  // 실패. as 연산자는 사용자 정의 형변환을 호출하지 않는다.
+var v2 = (V)o;    // 실패. 컴파일러는 object -> V 의 사용자 형변환을 찾아보고 실패한다.
+```
+
+캐스팅은 컴파일 타임의 정보를 기반으로 동작하기 때문에, o의 런타임 정보를 가지고 T -> V 사용자 정의 형변환을 동작시킬 수 없다.
+
+아래의 경우는 as 연산자가 동작하지 않는 경우이다.
+```C#
+object o = Factory.GetValue();
+var i1 = o as int;   // 컴파일 오류. int는 as 형변환 실패시의 null 값을 처리할 수 없다.
+var i2 = o as int?;  // 성공. nullable 타입으로 형변환하여 사용한다.
+```
+
+.NET Base Class Library(BCL)에는 시퀀스 내의 개별 료소들을 특정 타입으로 형변환하는 Enumerable.Cast<T>() 와 같은 함수가 있다. 이 함수는 IEnumerable 인터페이스만을 지원하는 컬렉션에 포함된 각각의 객체에 대해 형변환을 수행할 때 주로 사용된다. 이 함수는 as 연산자 대신 캐스트 연산을 사용하는데, as 연산자를 사용하면 형변환 하려는 타입에 제한이 생기기 때문이다. Cast<T>의 타입 매개변수에 사용자 정의 타입을 전달하는 경우 캐스트 연산으로 형변환을 수행해도 문제가 없을 지 살펴보고, 필요에 따라 사용자 정의 타입에 제약 조건을 추가할 것인지에 대해서도 검토해야 한다.
+  
+또한 IEnumerable<T>와 같은 제네릭 컬렉션에 대해서는 Cast<>를 호출할 수 없다.
+  
+가능하면 형변환을 피하는 것이 좋지만, 불가피한 경우 사용자의 의도를 표현할 수 있는 is/as 연산자를 사용하는 것이 좋다.
+
 ### 10. 베이스 클래스가 업그레이드된 경우에만 new 한정자를 사용하라 ###
 
 ```C#

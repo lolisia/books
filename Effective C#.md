@@ -40,13 +40,16 @@ var query2 = query1.Where(s => s.StartsWith(start));  // query1이 IQuerayable<s
 const의 경우 컴파일 타임에 상수로 IL코드를 대체하고, readonly의 경우 런타임에 상수를 할당하고 참조하는 형태로 동작한다.
 따라서 const는 내장 자료형, enum, null에 대해서만 사용할 수 있는 제한이 있다.
 
-또한, const를 포함하는 어셈블리(A)를 사용한 프로젝트(P)의 경우 A의 상수만 변경하여 어셈블리를 교체한 경우, P는 교체 전 상수로 빌드하였기 때문에 리빌드 하지 않으면 변경된 A의 상수와 다른 값을 사용하게 된다.
+또한, const를 포함하는 어셈블리(A)를 사용한 프로젝트(P)의 경우 A의 상수만 변경하여 어셈블리를 교체한 경우, P는 교체 전 상수로 빌드하였기 때문에 [리빌드 하지 않으면 변경된 A의 상수와 다른 값을 사용](https://docs.microsoft.com/ko-kr/dotnet/csharp/whats-new/version-update-considerations#source-compatible-changes)하게 된다.
 
 명명된 매개변수(named parameter)나 선택적 매개변수(optional parameter)도 상수 특성과 연관이 있다.
-선택적 매개변수의 기본값은 const 형태로 메서드를 사용하는 호출 측에 저장된다. 따라서 [선택적 매개변수의 기본값을 변경할 때에도 신중하게 접근해야 한다.](#10-베이스-클래스가-업그레이드된-경우에만-new-한정자를-사용하라)
+선택적 매개변수의 기본값은 const 형태로 메서드를 사용하는 호출 측에 저장된다.
 
 그 외에도 컴파일 할 때 사용되는 상숫값을 정의할 때는 반드시 const를 사용해야 한다.
-특성(Attribute)의 매개변수, switch/case 문의 레이블, enum 정의 시 사용하는 상수 등을 컴파일 시에 사용돼야 하므로 반드시 const를 통해 초기화돼야 한다.
+
+* 특성(Attribute)의 매개변수
+* switch/case 문의 레이블
+* enum 정의 시 사용하는 상수
 
 이런 몇가지 예외적인 상황을 제외한다면 대부분의 경우 const보다는 readonly를 사용하는 것이 좋다.
 
@@ -86,11 +89,42 @@ var i1 = o as int;   // 컴파일 오류. int는 as 형변환 실패시의 null 
 var i2 = o as int?;  // 성공. nullable 타입으로 형변환하여 사용한다.
 ```
 
-.NET Base Class Library(BCL)에는 시퀀스 내의 개별 료소들을 특정 타입으로 형변환하는 Enumerable.Cast&lt;T&gt;() 와 같은 함수가 있다. 이 함수는 IEnumerable 인터페이스만을 지원하는 컬렉션에 포함된 각각의 객체에 대해 형변환을 수행할 때 주로 사용된다. 이 함수는 as 연산자 대신 캐스트 연산을 사용하는데, as 연산자를 사용하면 형변환 하려는 타입에 제한이 생기기 때문이다. Cast<T>의 타입 매개변수에 사용자 정의 타입을 전달하는 경우 캐스트 연산으로 형변환을 수행해도 문제가 없을 지 살펴보고, 필요에 따라 사용자 정의 타입에 제약 조건을 추가할 것인지에 대해서도 검토해야 한다.
+.NET Base Class Library(BCL)에는 시퀀스 내의 개별 요소들을 특정 타입으로 형변환하는 [Enumerable.Cast<T>()](https://docs.microsoft.com/ko-kr/dotnet/api/system.linq.enumerable.cast) 와 같은 함수가 있다. 이 함수는 IEnumerable 인터페이스만을 지원하는 컬렉션에 포함된 각각의 객체에 대해 형변환을 수행할 때 주로 사용된다. 이 함수는 as 연산자 대신 캐스트 연산을 사용하는데, as 연산자를 사용하면 형변환 하려는 타입에 제한이 생기기 때문이다. Cast<T>의 타입 매개변수에 사용자 정의 타입을 전달하는 경우 캐스트 연산으로 형변환을 수행해도 문제가 없을 지 살펴보고, 필요에 따라 사용자 정의 타입에 제약 조건을 추가할 것인지에 대해서도 검토해야 한다.
   
-또한 IEnumerable<T>와 같은 제네릭 컬렉션에 대해서는 Cast<>를 호출할 수 없다.
+또한 IEnumerable<T>와 같은 제네릭 컬렉션에 대해서는 Cast<T>를 호출할 수 없다.
   
 가능하면 형변환을 피하는 것이 좋지만, 불가피한 경우 사용자의 의도를 표현할 수 있는 is/as 연산자를 사용하는 것이 좋다.
+
+### 4. string.Format()을 보간 문자열로 대체하라 ###
+
+string.Format()의 경우 아래의 단점이 존재한다. 보간 문자열의 경우 아래 단점을 보완한다.
+
+* 포맷 문자열과 인자 리스트를 분리하여 전달하는 구조이기 때문에 가독성이 떨어짐
+* 포맷 문자열에 나타낸 인자 갯수 및 순서와 인자 리스트가 일치하지 않는 경우 런타임 에러 발생
+
+사용자가 문자열 보간 기능을 사용하더라도 실제 C# 컴파일러는 기존 string.Format 함수를 호출하기 때문에, 인자로 값 타입을 사용하는 경우 박싱을 수행해야 한다.
+자주 사용하는 코드나 루프 내에서 [박싱이 반복되지 않도록 한다.](#9-박싱과-언박싱을-최소화-하라)
+
+```C#
+Console.WriteLine($"PI : {Math.PI}");   // boxing 발생
+Console.WriteLine($"PI : {Path.PI.ToString()}");    // boxing이 발생하지 않음
+```
+
+내장된 [표준 포맷 문자열](https://docs.microsoft.com/ko-kr/dotnet/standard/base-types/standard-numeric-format-strings)을 보간 문자열에서 사용할 수 있다.
+
+```C#
+Console.WriteLine($"PI : {Math.PI.ToString("F2")}");    // 일반적인 표준 포맷 문자열 사용 형태
+Console.WriteLine($"PI : {Path.PI:F2}");    // 보간 문자열에서 제공하는 표준 포맷 문자열 사용 형태
+```
+
+단, :연산자는 조건 연산자로도 사용하기 때문에, 보간 문자열 내에서 사용하는 경우 조건식에서 사용한다는 것을 알려줘야한다.
+
+```C#
+Console.WriteLine($"PI : {round ? Math.PI : Math.PI.ToString("F2")}");  // 컴파일 오류
+Console.WriteLine($"PI : {(round ? Math.PI : Math.PI.ToString("F2"))}");  // ok
+```
+
+### 9. 박싱과 언박싱을 최소화 하라 ###
 
 ### 10. 베이스 클래스가 업그레이드된 경우에만 new 한정자를 사용하라 ###
 
@@ -135,8 +169,6 @@ public class B : A
 
 하지만, 이 경우에도 MyFunction은 참조 방식에 따라 다른 호출을 한다는 상황은 변함 없으므로 신중히 고려해야 한다.
 그 외의 경우라면 절대로 new 한정자를 사용해서는 안된다.
-
-### 4. string.Format()을 보간 문자열로 대체하라 ###
 
 ### 37. 쿼리를 사용할 때는 즉시 평가보다 지연 평가가 낫다 ###
 

@@ -51,6 +51,7 @@ const의 경우 컴파일 타임에 상수로 IL코드를 대체하고, readonly
 이런 몇가지 예외적인 상황을 제외한다면 대부분의 경우 const보다는 readonly를 사용하는 것이 좋다.
 
 ### 3. 캐스트보다는 is, as가 좋다 ###
+
 형변환을 수행하는 경우 캐스팅 보다는 as 연산자를 사용하는 것이 좋다. 안전함과 동시에 런타임에 더 효율적으로 동작한다. 다만, as/is 연산자를 사용하는 경우 사용자 정의 형변환은 수행되지 않는다.
 
 형변환 과정에서 새로운 개체가 생성되는 경우는 as 연산자를 이용하여 박싱된 값 타입의 객체를 nullable 값 타입 객체로 변환하는 경우만 존재한다.
@@ -78,6 +79,7 @@ var v2 = (V)o;    // 실패. 컴파일러는 object -> V 의 사용자 형변환
 캐스팅은 컴파일 타임의 정보를 기반으로 동작하기 때문에, o의 런타임 정보를 가지고 T -> V 사용자 정의 형변환을 동작시킬 수 없다.
 
 아래의 경우는 as 연산자가 동작하지 않는 경우이다.
+
 ```C#
 object o = Factory.GetValue();
 var i1 = o as int;   // 컴파일 오류. int는 as 형변환 실패시의 null 값을 처리할 수 없다.
@@ -109,6 +111,7 @@ public class Derived : Base
 new 한정자를 활용해도 좋은 경우는 베이스 클래스(A)에서 이미 사용하고 있는 메서드를 재정의하여 완전히 새로운 베이스 클래스(B)를 만들어야 하는 경우 정도다.
 
 아래와 같은 형태로 사용하던 중
+
 ```C#
 public class A
 {
@@ -120,6 +123,7 @@ public class B : A
   public void MyFunction() { ... }
 }
 ```
+
 A클래스에 MyFunction() 이라는 함수가 구현되어 namespace에서 충돌하는 경우, 1) B클래스의 MyFunction() 이름을 변경하거나, 2) B클래스에서 MyFunction을 new 한정자로 재정의 할 수 있다.
 
 ```C#
@@ -128,6 +132,7 @@ public class B : A
   public new void MyFunction() => base.MyFunction();
 }
 ```
+
 하지만, 이 경우에도 MyFunction은 참조 방식에 따라 다른 호출을 한다는 상황은 변함 없으므로 신중히 고려해야 한다.
 그 외의 경우라면 절대로 new 한정자를 사용해서는 안된다.
 
@@ -223,13 +228,13 @@ private bool isValidProduct(Product p) => p.ProductName.LastIndexOf('c') == 0;
 
 var q1 = from p in dbContext.Products.AsEnumerable()
             where isValidProduct(p)
-            select p;   // 제대로 동작한다. 
+            select p;   // 제대로 동작한다.
                         // Products의 전체 데이터를 가져와 로컬 머신에서 Linq to Objects를 이용하여 where절을 수행한다.
 
 var q2 = from p in dbContext.Products
             where isValidProduct(p)
-            select p;   // 컬렉션을 순회할 때 예외를 발생한다. 
-                        // LINQ to SQL은 쿼리를 내부적으로 T-SQL로 변환하는 IQueryProvider 구현체를 포함하고 있는데, 
+            select p;   // 컬렉션을 순회할 때 예외를 발생한다.
+                        // LINQ to SQL은 쿼리를 내부적으로 T-SQL로 변환하는 IQueryProvider 구현체를 포함하고 있는데,
                         // 이를 통해 변환된 T-SQL은 원격지의 데이터베이스 엔진에 전달되어 SQL 구문을 수행한다.
 ```
 
@@ -253,7 +258,7 @@ AsQueryable()을 사용하여 중복을 제거할 수 있다.
 
 ```C#
 public static IEnumerable<Product> ValidProducts(this IEnumerable<Product> products) =>
-    from p in products.AsQueryable()    // 시퀀스의 런타임 타입이 IEnumerable인 경우 
+    from p in products.AsQueryable()    // 시퀀스의 런타임 타입이 IEnumerable인 경우
                                         // LINQ to Objects를 사용하여 IQueryable 타입으로 래핑된 객체를 반환한다.
     where p.ProductName.LastIndexOf('C') == 0
     select p;

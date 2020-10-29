@@ -160,6 +160,52 @@ Attribute의 인자로 문자열을 전달해야 하는 경우에도 사용 가�
 
 가능한 한 문자화되지 않은 형태로 심볼을 유지할 수 있다면 자동화 도구를 활용할 수 있는 가능성이 높아지기 때문에, 오류 검출이 쉬워진다.
 
+### 7. 델리게이트를 이용하여 콜백을 표현하라 ###
+
+여러 클래스가 상호 통신을 수행해야 할 때, 클래스 간의 결합도를 낮추고 싶다면 interface보다 delegate를 사용하는 것이 좋다.
+delegate는 런타임에 통지 대상을 설정할 수 있고, 다수의 클라이언트에게 통지를 보낼 수도 있다.
+
+동일한 타입의 매개변수를 취하더라도 반환 타입이 다른 경우 서로 다른 delegate 타입으로 간주하며, 컴파일러는 이 둘 사이의 형변환을 허용하지 않는다.
+
+LINQ는 모두 delegate 기반으로 설계되어 있으며, .NET Framework에서 매개변수로 단일 메소드를 필요로 하는 모든 경우에 lambda 표현식을 쓸 수 있도록 delegate를 사용한다. WPF나 WinForms에서 여러 Thread를 넘나들 경우 반드시 Mashaling이 필요한데, 이 경우에도 Callback이 사용된다. 이런 이유로 동일한 구조의 API를 직접 만드는 경우에도 가능한 한 이와 유사한 방식으로 작성하는 것이 좋다.
+
+delegate는 기본적으로 multicast가 가능하다. 하지만 두가지 주의해야 할 부분이 있다.
+
+* 예외가 발생할 경우, multicast가 중단될 수 있다.
+* 마지막으로 호출한 대상 함수의 반환값이 delegate의 반환값으로 간주된다.
+
+이런 두가지 문제를 해결하려면, 아래 예제처럼 delegate에 등록된 함수 목록을 가져와 직접 해결해야 한다.
+
+```C#
+public void foo(Func<bool> predicate)
+{
+  // multicast 호출 중 predicate가 false를 반환하는 경우 호출을 중단하는 형태
+  foreach (Func<bool> d in predicate.GetInvocationList())  // Delegate.GetInvocationList()는 Delegate[] 를 반환한다.
+  {
+    if (!d())
+      break;
+  }
+}
+
+public int bar(Func<int, int> functions)
+{
+  // function의 모든 반환값을 더해 반환
+  var result = 0;
+  foreach (Func<int, int> d in functions)
+  {
+    try
+    {
+      result += d(1);
+    }
+    catch { } // 예외 발생에도 function chain의 call을 유지
+  }
+
+  return result;
+}
+```
+
+delegate는 런타임에 callback을 구성하는 최고의 방법이다. delegate를 사용하면 interface를 사용하는 경우보다 callback을 사용해야 하는 클라이언트를 더욱 단순하게 구성할 수 있을 뿐 아니라 런타임에 callback 함수를 구성할 수 있다. 더해서 multicast 도 지원하기 때문에, .NET 환경에서 callback이 필요한 경우에는 반드시 delegate를 이용하기를 권장한다.
+
 ### 9. 박싱과 언박싱을 최소화 하라 ###
 
 대부분의 경우 .NET 2.0에 추가된 제네릭 클래스와 제네릭 메서드를 사용하면 [boxing/unboxing](https://docs.microsoft.com/ko-kr/dotnet/csharp/programming-guide/types/boxing-and-unboxing)을 피할 수 있다.

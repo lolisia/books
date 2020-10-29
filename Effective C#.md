@@ -126,6 +126,18 @@ Console.WriteLine($"PI : {(round ? Math.PI : Math.PI.ToString("F2"))}");  // ok
 
 ### 9. 박싱과 언박싱을 최소화 하라 ###
 
+대부분의 경우 .NET 2.0에 추가된 제네릭 클래스와 제네릭 메서드를 사용하면 [boxing/unboxing](https://docs.microsoft.com/ko-kr/dotnet/csharp/programming-guide/types/boxing-and-unboxing)을 피할 수 있다.
+
+하지만 아래의 예제처럼 간단한 코드에서도 boxing/unboxing이 발생할 수 있다.
+보간 문자열은 내부적으로 string.Format() 형태로 인자가 전달되며, 해당 함수는 param object[] 형태로 인자를 전달받기 때문에 값 형식의 인자를 사용할 경우 자동으로 boxing이 발생한다.
+
+```C#
+Console.WriteLine($"{number1} {number2} {number3}");  // 3번의 boxing이 발생
+Console.WriteLine($"{number1.ToString()} {number2.ToString()} {number3.ToString()}");  // boxing/unboxing이 발생하지 않음
+```
+
+값 형식은 System.Object 타입이나 여타의 인터페이스 타입으로 변경할 수 있다. 이러한 변환 작업은 암시적으로 이뤄지며, 실제로 어떤 부분에서 이러한 변환 작업이 행해지는 지도 찾아내기 어렵다. Boxing/Unboxing 작업은 객체에 대한 복사본을 생성하곤 하는데, 이로 인해 버그가 발생할 수도 있고 값 형식을 다형적으로 처리하는 과정에서 성능을 느리게 만든다.
+
 ### 10. 베이스 클래스가 업그레이드된 경우에만 new 한정자를 사용하라 ###
 
 ```C#

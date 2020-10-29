@@ -149,6 +149,17 @@ public static string ToFrenchCanada(FormattableString text)
 문자열 보간 기능은 글로벌/지역화에 필요한 거의 모든 기능을 갖추고 있고, 문화권을 고려하여 문자열을 생성하는 복잡한 내부를 잘 감추고 있다.
 문화권을 임의로 지정해야 하는 경우에는 명시적으로 FormattableString 타입의 객체를 생성하도록 코드를 작성하고, 이 객체를 통해 문장려을 얻어오는 방법을 사용하는 것이 좋다.
 
+### 6. nameof() 연산자를 적극 활용하라 ###
+
+[nameof() 연산자](https://docs.microsoft.com/ko-kr/dotnet/csharp/language-reference/operators/nameof)는 심볼 그 자체를 해당 심볼을 포함하는 문자열로 대체해준다.
+타입, 변수, interface, namespace에 대해서도 사용 가능하며, [정규화 된 이름](https://docs.microsoft.com/ko-kr/dotnet/csharp/language-reference/language-specification/basic-concepts#fully-qualified-names)도 제한없이 사용 가능하다.
+정규화된 이름을 사용하더라도 항상 로컬 이름을 문자열로 반환한다. [verbatim 식별자](https://docs.microsoft.com/ko-kr/dotnet/csharp/language-reference/tokens/verbatim)를 사용하는 경우 @문자는 제외된다.
+
+Attribute의 인자로 문자열을 전달해야 하는 경우에도 사용 가능하며, MVC Application이나 Web API의 Route 지정시에 특히 유용하다.
+심볼의 이름을 수정하는 경우에도 Refactor 등으로 변경사항을 쉽게 반영할 수 있다.
+
+가능한 한 문자화되지 않은 형태로 심볼을 유지할 수 있다면 자동화 도구를 활용할 수 있는 가능성이 높아지기 때문에, 오류 검출이 쉬워진다.
+
 ### 9. 박싱과 언박싱을 최소화 하라 ###
 
 대부분의 경우 .NET 2.0에 추가된 제네릭 클래스와 제네릭 메서드를 사용하면 [boxing/unboxing](https://docs.microsoft.com/ko-kr/dotnet/csharp/programming-guide/types/boxing-and-unboxing)을 피할 수 있다.

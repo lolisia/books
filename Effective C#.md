@@ -110,7 +110,7 @@ Console.WriteLine($"PI : {Math.PI}");   // boxing 발생
 Console.WriteLine($"PI : {Path.PI.ToString()}");    // boxing이 발생하지 않음
 ```
 
-내장된 [표준 포맷 문자열](https://docs.microsoft.com/ko-kr/dotnet/standard/base-types/standard-numeric-format-strings)을 보간 문자열에서 사용할 수 있다.
+숫자의 출력 형식이나, [문화권별로 다른 문자열](#5-문화권별로-다른-문자열을-생성하려면-FormattableString을-사용하라)을 생성하는 내장된 [표준 포맷 문자열](https://docs.microsoft.com/ko-kr/dotnet/standard/base-types/standard-numeric-format-strings)의 대부분을 간 문자열에서 사용할 수 있다.
 
 ```C#
 Console.WriteLine($"PI : {Math.PI.ToString("F2")}");    // 일반적인 표준 포맷 문자열 사용 형태
@@ -123,6 +123,31 @@ Console.WriteLine($"PI : {Path.PI:F2}");    // 보간 문자열에서 제공하�
 Console.WriteLine($"PI : {round ? Math.PI : Math.PI.ToString("F2")}");  // 컴파일 오류
 Console.WriteLine($"PI : {(round ? Math.PI : Math.PI.ToString("F2"))}");  // ok
 ```
+
+### 5. 문화권별로 다른 문자열을 생성하려면 FormattableString을 사용하라 ###
+
+[문자열 보간 기능](#4-string.Format()을-보간-문자열로-대체하라)을 사용하여 문자열을 만드는 경우, 컴파일러는 몇가지 조건을 고려하여 string 혹은 [FormattableString](https://docs.microsoft.com/ko-kr/dotnet/api/system.formattablestring) 객체를 생성한다.
+
+아래는 특정 문화권과 언어를 지정하여 문자열을 반환하는 방식의 예제이다.
+
+```C#
+public static string ToKorean(FormattableString text)
+  => string.Format(null, System.Globalization.CurtureInfo.CreateSpecificCulture("ko-kr"),
+                    text.Format, text.GetArguments());
+
+public static string ToFrenchCanada(FormattableString text)
+  => string.Format(null, System.Globalization.CurtureInfo.CreateSpecificCulture("fr-CA"),
+                    text.Format, text.GetArguments());
+```
+
+변수 타입을 var로 선언한 후에 보간 문자열이 FormattableString으로 반환하기를 기대한다면, 아래 사항을 주의해야 한다.
+
+* 문자열을 매개변수로 취하는 함수에 이 변수를 전달하는 코드를 작성하지 않는다.
+* string과 FormattableString을 모두 받아들이는 오버로딩 함수에 이 변수를 전달하지 않는다.
+* 반환 객체에 operator. 를 사용하는 확장 함수를 호출하지 않는다.
+
+문자열 보간 기능은 글로벌/지역화에 필요한 거의 모든 기능을 갖추고 있고, 문화권을 고려하여 문자열을 생성하는 복잡한 내부를 잘 감추고 있다.
+문화권을 임의로 지정해야 하는 경우에는 명시적으로 FormattableString 타입의 객체를 생성하도록 코드를 작성하고, 이 객체를 통해 문장려을 얻어오는 방법을 사용하는 것이 좋다.
 
 ### 9. 박싱과 언박싱을 최소화 하라 ###
 

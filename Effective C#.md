@@ -167,7 +167,7 @@ delegate는 런타임에 통지 대상을 설정할 수 있고, 다수의 클라
 
 동일한 타입의 매개변수를 취하더라도 반환 타입이 다른 경우 서로 다른 delegate 타입으로 간주하며, 컴파일러는 이 둘 사이의 형변환을 허용하지 않는다.
 
-LINQ는 모두 delegate 기반으로 설계되어 있으며, .NET Framework에서 매개변수로 단일 메소드를 필요로 하는 모든 경우에 lambda 표현식을 쓸 수 있도록 delegate를 사용한다. WPF나 WinForms에서 여러 Thread를 넘나들 경우 반드시 Mashaling이 필요한데, 이 경우에도 Callback이 사용된다. 이런 이유로 동일한 구조의 API를 직접 만드는 경우에도 가능한 한 이와 유사한 방식으로 작성하는 것이 좋다.
+LINQ는 모두 delegate 기반으로 설계되어 있으며, .NET Framework에서 매개변수로 단일 메서드를 필요로 하는 모든 경우에 lambda 표현식을 쓸 수 있도록 delegate를 사용한다. WPF나 WinForms에서 여러 Thread를 넘나들 경우 반드시 Mashaling이 필요한데, 이 경우에도 Callback이 사용된다. 이런 이유로 동일한 구조의 API를 직접 만드는 경우에도 가능한 한 이와 유사한 방식으로 작성하는 것이 좋다.
 
 delegate는 기본적으로 multicast가 가능하다. 하지만 두가지 주의해야 할 부분이 있다.
 
@@ -205,6 +205,27 @@ public int bar(Func<int, int> functions)
 ```
 
 delegate는 런타임에 callback을 구성하는 최고의 방법이다. delegate를 사용하면 interface를 사용하는 경우보다 callback을 사용해야 하는 클라이언트를 더욱 단순하게 구성할 수 있을 뿐 아니라 런타임에 callback 함수를 구성할 수 있다. 더해서 multicast 도 지원하기 때문에, .NET 환경에서 callback이 필요한 경우에는 반드시 delegate를 이용하기를 권장한다.
+
+### 8. 이벤트 호출 시에는 null 조건 연산자를 사용하라 ###
+
+event 호출시 event handler의 null 조건 연산자를 이용하여 호출하도록 권장한다.
+
+```C#
+private void EevntRaised(Action e)
+{
+  // case 1 : multi thread 환경에서 e()가 무효화 된 상태로 호출 가능
+  if (e != null)
+    e();
+
+  // case 2 : event의 복사본을 검사 후 생성. thread-safe 하지만 코드가 복잡하다.
+  var local_e = e;
+  if (local_e != null)
+    local_e();
+
+  // case 3 : thread-safe하며 간결한 호출
+  e?.Invoke();
+}
+```
 
 ### 9. 박싱과 언박싱을 최소화 하라 ###
 
@@ -264,6 +285,137 @@ public class B : A
 하지만, 이 경우에도 MyFunction은 참조 방식에 따라 다른 호출을 한다는 상황은 변함 없으므로 신중히 고려해야 한다.
 그 외의 경우라면 절대로 new 한정자를 사용해서는 안된다.
 
+## .NET 리소스 관리 ##
+
+### 11. .NET 리소스 관리에 대한 이해 ###
+
+[Garbage Collector(GC)](https://docs.microsoft.com/ko-kr/dotnet/standard/garbage-collection/fundamentals)는 Managed Memory를 관장하며 메모리 릭, [댕글링 포인터](https://ko.wikipedia.org/wiki/%ED%97%88%EC%83%81_%ED%8F%AC%EC%9D%B8%ED%84%B0), 초기화되지 않은 포인터, 여타의 메모리 관리를 자동화 해준다.
+
+이와는 반대로 DB Connection, GDI+ 객체, COM객체, 시스템 객체등은 개발자가 직접 관리해야 한다. Event Handler나 delegate등도 제대로 관리하지 않으면 참조하고 있는 객체가 불필요하게 오래 메모리에 남게 된다. [결과를 반환하는 Query등도 잘못 사용](#41-값비싼-리소스를-캡쳐하지-말라)하면 예상보다 더 오랫동안 메모리를 점유하게 된다.
+
+GC는 COM의 경우처럼 개별 객체가 스스로 자신의 참조 여부나 횟수 등을 관리하도록 하는 방식이 아니라, 응용 프로그램의 최상위 객체로부터 개별 객체까지의 도달 가능 여부를 확인하도록 설계했다. 도달 가능한 객체를 살아있는 객체로 판단하고, 도달 불가능한 객체를 Garbage로 간주한다. 이렇게 분류한 객체들을 Managed Heap의 Compact 과정에서 메모리 위치를 조정하여 단편화된 메모리 중 살아있는 객체들을 하나의 큰 메모리 덩어리로 합친다.
+
+비관리 리소스의 경우, 유저가 관리하기 손쉽도록 finalizer와 IDisposable 인터페이스를 제공한다. finalizer는 비관리 리소스의 해제 작업이 반드시 수행될 수 있도로 도와주는 방어적인 매커니즘이지만 단점이 많기 때문에 IDisposable 인터페이스를 통해서 비관리 리소스를 해제하기를 권장한다.
+
+finalizer를 가지고 있는 객체는 finalizer를 호출해야 하기 때문에 GC가 바로 메모리를 해제 하지 못한다. 또한, GC가 동작하는 Thread에서 finalizer를 호출할 수 없기 때문에 해당 객체를 [finalizer Queue](https://docs.microsoft.com/ko-kr/dotnet/api/system.gc.waitforpendingfinalizers)에 삽입하는 사전 준비 작업만 진행한다. 다음 GC 수집 절차가 수행되면, finalizer Thread에서 finalizer Queue에 존재하는 finalizer 포함 객체들의 finalizer를 호출한 후 메모리를 해제한다.
+
+위 설명처럼 finalizer를 가지고 있는 객체는 Garbage로 간주된 이후에도 오랜 시간 메모리를 점유하게 되며, 사용자가 구현한 finalizer는 긴 시간이 지난 후에 GC에 의해 호출된다. 언제 호출되는지 사용자는 알 수 없다. 특정 타이밍에 명시적으로 리소스를 해제해야 하는 경우에는 사용할 수 없다.
+
+GC는 수집 과정을 최적화 하기 위해 [세대(Generation)](https://docs.microsoft.com/ko-kr/dotnet/standard/garbage-collection/fundamentals#generations)라는 개념을 사용한다.
+최종 GC 수집 이후 생성된 객체는 0세대 객체이다. 이후에 GC 수집이 발생하여 0세대 객체중 살아있는 객체를 1세대 객체가 된다. 2번 혹은 그 이상의 GC 수집 절차에 살아남은 1세대 객체들은 2세대 객체로 구분한다. 0세대 객체는 높은 확률로 Gabage가 되기 때문에 GC 수집과정 매번 0세대 객체를 대상으로 Garbage 수집을 진행한다. 대략 10번에 한번꼴로 1세대 객체에 대한 수집을 수행하고, 100번에 한번 꼴로 2세대 객체를 포함한 모든 세대의 객체를 대상으로 Garbage 수집을 진행한다.
+
+finalizer를 포함하는 객체의 경우 0세대에서 메모리가 해제되지 않으므로 1세대 객체가 되고, 1세대 객체 수집이 수행되지 않는 중에 2세대 객체가 될 수도 있다. 이 경우 해당 객체는 오랜 시간 메모리에 잔류하여 해제되지 않게 된다. [Dispose 패턴을 구현](#17-표준-Dispose-패턴을-구현하라)하여 finalizer 리소스 해제를 효과적으로 대체할 수 있다.
+
+### 17. 표준 Dispose 패턴을 구현하라 ###
+
+[표준 Dispose 패턴](https://docs.microsoft.com/ko-kr/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern)은 GC 수집기와 연게되어 동작하며, 불가피한 경우에만 finalizer를 호출하도록 하여 성능에 미치는 부정적인 영향을 최소화 한다.
+
+상속 계통상 최상위의 베이스 클래스는 다음과 같은 작업을 수행해야 한다.
+
+* 비관리 리소스를 정리하기 위해서 interface IDisposable을 구현해야 한다.
+* 멤버 필드로 비관리 리소스를 포함하는 경우에 한해 방어적으로 동작할 수 있도록 finalizer를 추가해야 한다.
+* Dispose와 finalizer(존재하는 경우)는 파생 클래스가 고유의 리소스 정리 작업이 필요한 경우 이 가상 메서드를 재정의할 수 있도록 실제 리소스 정리 작업을 수행하는 다른 가상 메서드에 작업을 위임하도록 작성되어야 한다.
+
+파생 클래스는 다음 작업을 수행해야 한다.
+
+* 파생 클래스가 고유의 리소스 정리 작업을 수행해야 한다면 베이스 클래스에서 정의한 가상 메서드를 재정의 한다.
+* 멤버 필드로 비관리 리소스를 포함하는 경우에만 finalizer를 추가해야 한다.
+* 베이스 클래스에서 정의하고 있는 가상 함수를 반드시 재호출해야 한다.
+
+비관리 리소스를 포함하는 클래스는 반드시 finalizer를 구현해야 한다. Dispose()가 호출되지 않는다면 해당 리소스는 누수되기 때문에, 방어적으로 동작하기 위해 finalizer를 구현해야 한다.
+
+[interface IDisposable](https://docs.microsoft.com/ko-kr/dotnet/api/system.idisposable)의 Dispose() 메서드는 다음 4가지 작업을 반드시 수행해야 한다.
+
+* 모든 비관리 리소스를 정리한다.
+* 모든 관리 리소스를 정리한다.
+* 객체가 이미 정리되었음을 나타내기 위한 상태 플래그를 설정한다. 이미 정리된 객체에 대하여 추가로 정리 작업이 요청될 경우 이 플래그가 올라가있다면 ObjectDisposed 예외를 발생시킨다.
+* GC.SuppressFinalize(this)를 호출하여 finalizer 호출을 회피한다.
+
+finalizer와 Dispose()에서는 동일한 역할을 수행하므로, 코드 중복이 일어날 수 있기 때문에 표준 Dispose 패턴에서는 3번째 Helper 메서드를 사용한다.
+해당 함수의 원형은 아래와 같다.
+
+```C#
+protected virtual void Dispose(bool isDisposing);
+```
+
+이 가상함수를 구현하여 관리/비관리 리소스 해제를 구현하면 중복 코드 없이 finalizer와 Dispose() 양쪽에서 사용할 수 있다. 또한 가상 함수이므로 파생 클래스에서 이 메서드를 재정의하여 자신이 소유한 리소스를 정리하는 코드를 작성할 수 있다. 이 경우, 코드의 마지막 부분에서는 반드시 베이스 클래스에서 정의하고 있는 Dispose(bool) 함수를 호출해야 한다.
+
+이 Dispose(bool) 함수를 호출할 때에는 **관리/비관리 리소스 모두를 제거하려면 isDisposing으로 true를 전달하고, 비관리 리소스만 정리하려면 false만 전달** 해야 한다.
+아래는 표준 Dispose 패턴을 구현한 Base/Derived 클래스 예제이다.
+
+```C#
+public class Base : IDisposable
+{
+  private bool disposed;  // dispose flag
+
+  // IDisposable 구현
+  // Dispose()가 호출되었다면 finalizer를 회피한다.
+  public void Dispose()
+  {
+    Dispose(true);
+    GC.SuppressFinalize(this);
+  }
+
+  // 가상 Dispose 함수
+  protected virtual void Dispose(bool isDisposing)
+  {
+    // 한번만 수행하도록 보장한다.
+    if (disposed)
+      return;
+
+    if (isDisposing)
+    {
+      // 관리 리소스 정리
+    }
+
+    // 비관리 리소스 정리
+    disposed = true;
+  }
+
+  public void foo()
+  {
+    if (disposed)
+      throw new ObjectDisposedException("이미 해제된 객체의 함수를 호출했습니다.");
+  }
+}
+```
+
+```C#
+public class Derived : Base
+{
+  private bool disposed_derived;  // 자신만의 disposed flag를 갖는다.
+
+  protected override void Dispose(bool isDisposing)
+  {
+    // 한번만 수행하도록 보장한다.
+    if (disposed_derived)
+      return;
+
+    if (isDisposing)
+    {
+      // 관리 리소스 정리
+    }
+
+    // 비관리 리소스 정리
+
+    // 베이스 클래스의 리소스 정리
+    base.Dispose(isDisposing);
+
+    disposed_derived = true;
+  }
+}
+```
+
+베이스/파생 클래스의 일부만이 정리된 경우에 혹시 발생할지 모르는 문제를 피하기 위해 각자의 disposed flag를 사용하여 구현한다.
+Dispose() 메서드는 여러번 호출되더라도 동일하게 동작하도록 구현해야 한다. 이미 정리된 객체의 멤버 메서드를 호출한 경우 ObjectDisposedException 예외를 발생시키는 것도 표준 Dispose 패턴의 규칙이다.
+
+제거/정리 작업에 있어서 가장 핵심적이고 중요한 지침중 하나는 Dispose(bool) 메서드 내에서는 리소스 정리 작업만을 수행하라는 것이다. Dispose()나 finalizer에서 다른 작업을 수행하게 되면 객체의 생명주기와 관련된 심각한 문제를 일으킬 수 있다. finalizer를 가진 객체는 최종적으로 정리가 완료되기 이전에 객체를 다시 도달 가능 상태로 만들어버리면 객체는 해제되지 않고, 비정상적인 상태로 남게 된다.
+
+* GC는 해당 객체의 finalizer를 호출했으므로 더이상 finalizer를 호출할 필요가 없다고 간주한다. 따라서 되살아난 객체가 다시 제거되는 과정에서 finalizer를 호출할 방법이 없다.
+* finalizer 과정이 완료된 객체는 명백히 가비지로 간주되어, 모든 관리 멤버 필드등이 메모리에서 해제된다.
+
+## LINQ 활용 ##
+
 ### 37. 쿼리를 사용할 때는 즉시 평가보다 지연 평가가 낫다 ###
 
 쿼리를 정의하는 작업은 작업 수행 절차를 정의하는 것이므로, 쿼리의 결과를 순회하는 경우에 결과가 생성된다. 이를 지연 평가(Lazy Evaluation)라고 한다.
@@ -312,6 +464,8 @@ var fastQuery = from p in products
 
 즉시 평가가 필요한 경우, ToList()나 ToArray()를 사용하여 컬렉션의 스냅샷을 얻을 수 있다.
 하지만 즉시 평가가 필요한 경우가 아니라면 대체로 지연 평가를 사용하는 편이 훨씬 낫다.
+
+### 41. 값비싼 리소스를 캡쳐하지 말라 ###
 
 ### 47. IEnumerable<T> 데이터 소스와 IQueryable<T> 데이터 소스를 구분하라 ###
 

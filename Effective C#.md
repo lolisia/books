@@ -306,6 +306,54 @@ GC는 수집 과정을 최적화 하기 위해 [세대(Generation)](https://docs
 
 finalizer를 포함하는 객체의 경우 0세대에서 메모리가 해제되지 않으므로 1세대 객체가 되고, 1세대 객체 수집이 수행되지 않는 중에 2세대 객체가 될 수도 있다. 이 경우 해당 객체는 오랜 시간 메모리에 잔류하여 해제되지 않게 된다. [Dispose 패턴을 구현](#17-표준-Dispose-패턴을-구현하라)하여 finalizer 리소스 해제를 효과적으로 대체할 수 있다.
 
+### 12. 할당 구문보다 멤버 초기화 구문이 좋다 ###
+
+클래스의 멤버 변수들의 값을 초기화 할 때, 생성자 할당 구문보다 멤버 초기화 구문을 사용하는 것을 권장한다.
+
+* 여러개의 생성자를 사용하는 경우 초기화 코드를 누락하는 것을 방지
+* 변수 선언과 객체 생성이 동시에 작성된 형태가 자연스러움
+* 생성자를 갖지 않는 경우에도 초기화 동작
+* 생성자 이전에 초기화 구문이 수행되므로, 상속받은 클래스의 생성자에서 베이스 클래스의 생성자가 호출되기 전에도 안전하게 접근 가능
+
+예외적으로 아래의 3가지 경우는 멤버 초기화를 안하는 것이 좋다.
+
+첫째는 객체를 0이나 null로 초기화 하는 경우이다. 시스템 초기화 루틴은 저수준에서 직접 CPU명령을 수행하여 메모리 블록을 0으로 설정하기 때문에 중복 동작을 하는 코드를 생성하게 된다. 이 경우 [박싱/언박싱된 변수](#9-박싱과-언박싱을-최소화-하라) 모두에 대해서 0으로 초기화 하는 과정([IL initobj](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit.opcodes.initobj))이 수행되어 성능 저하가 있다.
+
+```C#
+public struct Value { ... }
+
+class foo
+{
+  private Value v1; // 메모리 블록 0으로 초기화
+  private Value v2 = new Value(); // IL initobj
+}
+```
+
+둘째는 동일한 객체를 반복해서 초기화 하는 경우다. 이 경우 멤버 초기화 구문에 의해 생성된 객체는 0세대에 즉각 가비지가 된다.
+멤버 초기화 구문은 모든 생성자가 동일한 방법으로 멤버 변수를 초기화 하는 경우에만 사용해야 한다.
+암시적인 속성을 사용하는 경우에도 [중복 초기화](#14-초기화-코드가-중복되는-것을-최소화하라)가 발생할 수 있다.
+
+```C#
+public class foo
+{
+  private List<string> list = new List<string>();
+  public foo()
+  {
+
+  }
+  
+  pubilc foo(int size)
+  {
+    list = new List<string>(size);
+  }
+}
+```
+
+셋째는 예외처리가 반드시 필요한 경우이다. 멤버 초기화 구문은 try-catch 를 사용할 수 없기 때문에 초기화 과정에서 예외 발생시 예외가 외부로 전파된다.
+이 경우 생성자 내부로 초기화 코드를 옮기고 [예외 처리 코드를 적절히 구현](#47-사용자-지정-예외-클래스를-완벽하게-작성하라)해야 한다.
+
+### 14. 초기화 코드가 중복되는 것을 최소화하라 ###
+
 ### 17. 표준 Dispose 패턴을 구현하라 ###
 
 [표준 Dispose 패턴](https://docs.microsoft.com/ko-kr/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern)은 GC 수집기와 연게되어 동작하며, 불가피한 경우에만 finalizer를 호출하도록 하여 성능에 미치는 부정적인 영향을 최소화 한다.
@@ -467,7 +515,7 @@ var fastQuery = from p in products
 
 ### 41. 값비싼 리소스를 캡쳐하지 말라 ###
 
-### 47. IEnumerable<T> 데이터 소스와 IQueryable<T> 데이터 소스를 구분하라 ###
+### 42. IEnumerable<T> 데이터 소스와 IQueryable<T> 데이터 소스를 구분하라 ###
 
 IQueryable<T>와 IEnumerable<T>는 거의 동일한 API 정의를 가지지만, 항상 이 둘을 서로 대체하여 사용할 수 있는 것은 아니다.
 실제로 동작 방식도 다르고 성능도 매우 크게 차이난다.
@@ -545,3 +593,7 @@ public static IEnumerable<Product> ValidProducts(this IEnumerable<Product> produ
 ```
 
 위의 `string.LastIndexOf()`는 LINQ to SQL 라이브러리를 통해 정상 동작하는 메서드중 하나이지만, 각각의 제공자들은 각기 제공하는 기능이 다르므로 IQueryProvider 구현체가 이 메서드를 구현하고 있다고 가정해서는 안된다.
+
+## 예외 처리 ##
+
+### 47. 사용자 지정 예외 클래스를 완벽하게 작성하라 ###

@@ -354,6 +354,36 @@ public class foo
 
 ### 14. 초기화 코드가 중복되는 것을 최소화하라 ###
 
+생성자를 이용하여 멤버 변수의 값을 초기화 하는 경우, 다른 생성자를 호출하여 초기화 과정을 위임하는 방식([생성자 체인 기법](https://www.codeproject.com/Articles/271582/Constructor-Chaining-in-Csharp-2))으로 초기화 하는 것을 권장한다.
+
+변수를 초기화하는 멤버함수를 구현하는 경우, 읽기 전용 변수등의 초기화는 해당 함수에서 처리할 수 없다.
+
+생성자 매개변수에 기본값을 지정하여 사용하는 방식으로 호출자가 선택적으로 생성자 매개변수의 값을 전달할 수 있도록 구현할 수 있으나, 몇가지 제약사항이 있다.
+
+* 기본값을 갖는 매개변수를 취하는 생성자는 제네릭의 new() 조건을 만족하지 못한다.
+* Reflection을 이용하여 인스턴스를 생성하는 경우 기본 생성자를 제공해야 한다.
+* 매개변수의 이름이 변경되는 경우, 매개변수의 이름이 어셈블리 외부로 노출되어 동작하기 때문에 [소스 호환 가능 변경](https://docs.microsoft.com/ko-kr/dotnet/csharp/whats-new/version-update-considerations#source-compatible-changes) 이다.
+
+```C#
+public class foo
+{
+  private readonly List<int> container;
+  private int value;
+  private string name;
+
+  public foo() : this(0, string.Empty)
+  {
+  }
+
+  public foo(int v = 0, string n = "")
+  {
+    value = v;
+    name = n;
+    container = new List<int>();
+  }
+}
+```
+
 ### 17. 표준 Dispose 패턴을 구현하라 ###
 
 [표준 Dispose 패턴](https://docs.microsoft.com/ko-kr/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern)은 GC 수집기와 연게되어 동작하며, 불가피한 경우에만 finalizer를 호출하도록 하여 성능에 미치는 부정적인 영향을 최소화 한다.

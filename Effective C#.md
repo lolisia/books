@@ -356,8 +356,6 @@ public class foo
 
 생성자를 이용하여 멤버 변수의 값을 초기화 하는 경우, 다른 생성자를 호출하여 초기화 과정을 위임하는 방식([생성자 체인 기법](https://www.codeproject.com/Articles/271582/Constructor-Chaining-in-Csharp-2))으로 초기화 하는 것을 권장한다.
 
-변수를 초기화하는 멤버함수를 구현하는 경우, 읽기 전용 변수등의 초기화는 해당 함수에서 처리할 수 없다.
-
 생성자 매개변수에 기본값을 지정하여 사용하는 방식으로 호출자가 선택적으로 생성자 매개변수의 값을 전달할 수 있도록 구현할 수 있으나, 몇가지 제약사항이 있다.
 
 * 기본값을 갖는 매개변수를 취하는 생성자는 제네릭의 new() 조건을 만족하지 못한다.
@@ -380,6 +378,35 @@ public class foo
     value = v;
     name = n;
     container = new List<int>();
+  }
+}
+```
+
+변수를 초기화하는 멤버함수를 구현하는 경우, 읽기 전용 변수등의 초기화는 해당 함수에서 처리할 수 없다.
+또한, 모든 생성자에서 [인스턴스 멤버 변수의 초기화 코드가 추가](#12-할당-구문보다-멤버-초기화-구문이-좋다)된다.
+
+```C#
+public class foo
+{
+  private readonly List<int> container;
+  private int value;
+  private string name;
+
+  public foo()
+  {
+    init(0, string.Empty);
+  }
+
+  public foo(int v, string n)
+  {
+    init(v, n);
+  }
+
+  private void init(int v, string n)
+  {
+    container = new List<int>();  // compile error
+    value = v;
+    name = n;
   }
 }
 ```

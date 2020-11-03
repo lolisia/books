@@ -411,6 +411,75 @@ public class foo
 }
 ```
 
+### 15. 불필요한 객체를 만들지 말라 ###
+
+모든 참조 타입의 객체는 지역변수라 하더라도 동적으로 메모리를 할당하며, 객체가 도달 불가능한 상태가 되면 GC에 의해 해제되게 된다.
+아래의 1번 예제에서는 매 호출시마다 새로운 GDI객체를 할당하고, 사용하는 메모리양이 많아지기 때문에 GC의 수집이 빈번하게 발생할 수 있다.
+
+```C#
+protected override void OnPaint(PaintEventArgs e)
+{
+  using (var font = new Font("Arial", 10f))
+  {
+    e.Graphics.DrawString(DateTime.Now.ToString(), font, Brushes.Black, new PointF(0, 0));
+  }
+}
+```
+
+매번 할당을 피하기 위해 아래 예제처럼 해당 객체를 멤버 변수로 만들고 재사용할 수 있다. 단, Font는 IDisposable을 상속받은 객체이기 때문에 [해당 객체를 멤버 변수로 갖는 클래스도 IDisposable을 구현](#17-표준-Dispose-패턴을-구현하라)해야 한다.
+
+```C#
+private Font mFont = new Font("Arial", 10f);
+
+protected override void OnPaint(PaintEventArgs e)
+{
+    e.Graphics.DrawString(DateTime.Now.ToString(), mFont, Brushes.Black, new PointF(0, 0));
+}
+```
+
+하지만 이 방법은, 여러 클래스에서 범용적으로 사용하는 형태의 공용 리소스의 경우, 각 클래스가 각자 생성 및 관리를 해야 한다는 단점이 있다.
+.NET Framework에서는 위의 Brushes.Black 같은 범용 객체들을 지연 로딩을 이용하여 미리 만들어두어 제공한다.
+
+```C#
+private static Brush blackBrush;
+
+public static Brush Black
+{
+  get
+  {
+    if (blackBrush == null)
+      blackBrush = new SolidBrush(Color.Black);
+    return blackBrush;
+  }
+}
+```
+
+하지만 이 방법도 아래와 같은 문제가 있어서 사용에 신중해야 한다.
+
+* 해당 객체가 필요없어지는 시점을 특정할 수 없기 때문에 필요 이상으로 메모리에 오래 상주하게 된다.
+* 해당 객체의 Dispose()를 호출할 시점을 결정할 수 없어 비관리 리소스를 삭제할 수 없다.
+
+변경 불가능한 타입을 만들 경우, 값 수정이 비효율적으로 동작하는 것을 방지 하기 위해 Builder class를 구현하는 것을 고려할 수 있다. (예 : string - StringBuilder)
+
+### 16. 생성자 내에서는 절대로 가상 함수를 호출하지 말라 ###
+
+C#은 생성자 호출 시점에 타입이 이미 결정된다. 베이스 클래스의 생성자에서 가상함수 호출시, 파생 클래스의 가상함수가 호출된다는 의미이다.
+인스턴스 생성의 순서는 아래의 순서로 진행된다.
+
+1. 파생 클래스의 멤버 변수 초기화
+2. 베이스 클래스의 멤버 변수 초기화
+3. 베이스 클래스의 생성자
+4. 파생 클래스의 생성자
+
+이 경우, 3 과정에서 가상 함수를 호출시 파생 클래스의 가상 함수가 동작하며, 이 경우 파생 클래스의 멤버 변수의 초기화를 보장할 수 없기 때문에 올바른 동작을 보장할 수 없다.
+
+생성자에서 가상함수를 호출해도 되는 유일한 경우는
+
+* 파생 클래스가 기본 생성자만을 정의하고 있고
+* 다른 어떤 생성자도 가지고 있지 않은 경우 뿐이다.
+
+하지만 이는 파생 클래스를 정의하는 과정에 심각한 제약을 가하는 것이기 때문에, 생성자에서 가상함수를 호출하는 것을 아예 배제하는 것을 권장한다.
+
 ### 17. 표준 Dispose 패턴을 구현하라 ###
 
 [표준 Dispose 패턴](https://docs.microsoft.com/ko-kr/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern)은 GC 수집기와 연게되어 동작하며, 불가피한 경우에만 finalizer를 호출하도록 하여 성능에 미치는 부정적인 영향을 최소화 한다.
